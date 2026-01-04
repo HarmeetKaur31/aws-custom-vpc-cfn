@@ -1,0 +1,192 @@
+Parameters:
+  VPCCIDR:
+    Description: Enter Your VPC CIDR.
+    Type: String
+    Default: "10.20.0.0/16"
+
+  Subnet1CIDR:
+    Description: Enter Your Subnet1 CIDR.
+    Type: String
+    Default: "10.20.1.0/24"
+
+  AZ1:
+    Description: Enter your AZ1 Name.
+    Type: String
+    Default: "ca-central-1a"
+
+  Subnet2CIDR:
+    Description: Enter Your Subnet2 CIDR.
+    Type: String
+    Default: "10.20.2.0/24"
+
+  Subnet3CIDR:
+    Description: Enter Your Subnet2 CIDR.
+    Type: String
+    Default: "10.20.3.0/24"  
+
+  AZ2:
+    Description: Enter your AZ2 Name.
+    Type: String
+    Default: "ca-central-1b"  
+
+  Subnet4CIDR:
+    Description: Enter Your Subnet4 CIDR.
+    Type: String
+    Default: "10.20.4.0/24"
+
+  SGName:
+    Description: Enter Your SG Name.
+    Type: String
+    Default: "TFPublicEC2SG"  
+
+  EC2AMI:
+    Description: Enter Your EC2 AMI ID.
+    Type: String
+    Default: "ami-085f043560da76e08"
+   
+  InstanceType:
+    Description: Enter Your EC2 Instance Type.
+    Type: String
+    Default: "t3.micro"
+
+  EC2KeyPair:
+    Description: Enter Your EC2 Key Pair Name.
+    Type: String
+    Default: "harmeet-canada-kpec2"
+
+Resources:
+  CustomVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VPCCIDR
+      EnableDnsSupport: 'true'
+      EnableDnsHostnames: 'true'
+      Tags:
+       - Key: stack
+         Value: production
+
+  CustomIGW:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+      - Key: stack
+        Value: production     
+
+  AttachIGW:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: CustomVPC
+      InternetGatewayId:
+        Ref: CustomIGW     
+
+  PublicRT:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:  
+        Ref: CustomVPC
+      Tags:
+      - Key: stack
+        Value: production
+
+  CustomRT:
+    Type: AWS::EC2::Route
+    Properties:
+       RouteTableId:
+         Ref: PublicRT
+       DestinationCidrBlock: 0.0.0.0/0
+       GatewayId:
+         Ref: CustomIGW 
+
+  Subnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref CustomVPC
+      CidrBlock: !Ref Subnet1CIDR
+      AvailabilityZone: !Ref AZ1
+      MapPublicIpOnLaunch: true
+      Tags:
+      - Key: stack
+        Value: production                   
+
+  Subnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref CustomVPC
+      CidrBlock: !Ref Subnet2CIDR
+      AvailabilityZone: !Ref AZ1
+      Tags:
+      - Key: stack
+        Value: production 
+
+  Subnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref CustomVPC
+      CidrBlock: !Ref Subnet3CIDR
+      AvailabilityZone: !Ref AZ2
+      MapPublicIpOnLaunch: true
+      Tags:
+      - Key: stack
+        Value: production
+
+  Subnet4:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref CustomVPC
+      CidrBlock: !Ref Subnet4CIDR
+      AvailabilityZone: !Ref AZ2
+      Tags:
+      - Key: stack
+        Value: production
+
+  Subnet1RTAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: Subnet1
+      RouteTableId:
+        Ref: PublicRT 
+
+  Subnet3RTAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: Subnet3
+      RouteTableId:
+        Ref: PublicRT  
+
+  PublicEC2SG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow SSH access
+      GroupName: !Ref SGName 
+      VpcId: !Ref CustomVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: PublicEC2SG      
+
+  PublicEC2Instance: 
+    Type: AWS::EC2::Instance
+    Properties: 
+      ImageId: !Ref EC2AMI
+      KeyName: !Ref EC2KeyPair
+      InstanceType: !Ref InstanceType
+      SecurityGroupIds: 
+        - !Ref PublicEC2SG
+      SubnetId: !Ref Subnet1    
+
+  PrivateEC2Instance: 
+    Type: AWS::EC2::Instance
+    Properties: 
+      ImageId: !Ref EC2AMI
+      KeyName: !Ref EC2KeyPair
+      InstanceType: !Ref InstanceType
+      SecurityGroupIds: 
+        - !Ref PublicEC2SG
+      SubnetId: !Ref Subnet3                            
